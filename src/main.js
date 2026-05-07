@@ -1,4 +1,4 @@
-import './style.css';
+import '../style.css';
 import { games, testingGames, proxies } from './games.js';
 
 // ── Color bands for game cards (cycles through) ──────────────────────
