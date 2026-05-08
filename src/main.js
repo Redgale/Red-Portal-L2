@@ -8,9 +8,6 @@ const BANDS = [
 ];
 
 // ── Launch mode — 'fetch' or 'proxy' ────────────────────────────────
-// 'fetch'  → try direct fetch first, fall back to UV proxy, then direct nav
-// 'proxy'  → try UV proxy first,    fall back to direct fetch, then direct nav
-// The fallback cascade always applies regardless of which mode is selected.
 let launchMode = 'fetch';
 
 // ── UV readiness flag ────────────────────────────────────────────────
@@ -69,8 +66,6 @@ function renderGrid(containerId, list) {
 }
 
 // ── Mode toggle UI ───────────────────────────────────────────────────
-// Injected into the section-header of every games/testing/proxies section.
-// All toggles share the same `launchMode` variable — clicking one syncs all.
 function buildModeToggle() {
   const uid = Math.random().toString(36).slice(2);
   const wrap = document.createElement('div');
@@ -91,12 +86,9 @@ function buildModeToggle() {
     const btn = e.target.closest('.mode-btn[data-mode]');
     if (!btn) return;
     launchMode = btn.dataset.mode;
-
-    // Sync every toggle on the page
     document.querySelectorAll('.mode-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.mode === launchMode);
     });
-
     toast(
       launchMode === 'fetch'
         ? '🌐 Fetch mode — direct fetch first, UV proxy as fallback'
@@ -108,7 +100,6 @@ function buildModeToggle() {
   return wrap;
 }
 
-// Lights up every UV indicator dot once the service worker is active.
 function setUVDotState(ready) {
   document.querySelectorAll('.uv-dot').forEach(d => d.classList.toggle('ready', ready));
 }
@@ -144,7 +135,6 @@ function toast(message, type = 'info') {
   t.className = `toast toast-${type}`;
   t.textContent = message;
   container.appendChild(t);
-  // Force reflow so the CSS transition actually fires
   requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
   setTimeout(() => {
     t.classList.remove('show');
@@ -169,24 +159,26 @@ const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <body><div class="ring"></div><p>Loading game…</p></body></html>`;
 
 // ── UV service worker registration ───────────────────────────────────
+// SW lives at /uv.sw.js (root) so its default max-scope is /,
+// meaning it can freely claim /service/ on all browsers without any
+// Service-Worker-Allowed header tricks.
 async function registerUV() {
   if (!('serviceWorker' in navigator)) {
     console.warn('[UV] Service workers not supported');
     return;
   }
   try {
-    const reg = await navigator.serviceWorker.register('/uv/uv.sw.js', {
+    const reg = await navigator.serviceWorker.register('/uv.sw.js', {
       scope: '/service/',
     });
 
-    // Wait for an active worker (handles first-load case)
     await new Promise(resolve => {
       if (reg.active) { resolve(); return; }
       const sw = reg.installing || reg.waiting;
       if (sw) sw.addEventListener('statechange', e => {
         if (e.target.state === 'activated') resolve();
       });
-      setTimeout(resolve, 3000); // safety — don't block forever
+      setTimeout(resolve, 3000);
     });
 
     uvReady = true;
@@ -197,7 +189,6 @@ async function registerUV() {
   }
 }
 
-// Returns the UV-proxied URL or null if UV isn't ready yet.
 function getUVUrl(targetUrl) {
   try {
     const cfg = window.__uv$config;
@@ -209,9 +200,6 @@ function getUVUrl(targetUrl) {
 }
 
 // ── Stage helpers ────────────────────────────────────────────────────
-
-// Attempts a direct fetch and injects the result as a blob URL.
-// Resolves true on success, false on any failure.
 function tryFetch(url, win) {
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 12_000);
@@ -232,8 +220,6 @@ function tryFetch(url, win) {
     .catch(() => { clearTimeout(tid); return false; });
 }
 
-// Attempts UV proxy routing. Returns true if UV was ready and we routed,
-// false if UV wasn't available (SW not registered / not yet active).
 function tryProxy(url, win) {
   const uvUrl = getUVUrl(url);
   if (!uvUrl) return false;
@@ -241,49 +227,28 @@ function tryProxy(url, win) {
   return true;
 }
 
-// ── openGame — respects launchMode, always falls through to direct nav ──
-//
-// Fetch mode (default):
-//   1. Direct fetch → blob URL              (cleanest, assets load perfectly)
-//   2. UV proxy     → /service/<encoded>    (bypasses CORS via bare server)
-//   3. Direct nav   → raw URL              (last resort, always works)
-//
-// Proxy mode:
-//   1. UV proxy     → /service/<encoded>    (route through bare server first)
-//   2. Direct fetch → blob URL              (fallback if UV not ready)
-//   3. Direct nav   → raw URL              (last resort, always works)
-//
+// ── openGame ─────────────────────────────────────────────────────────
 async function openGame(url) {
   if (!url) { toast('No URL set for this game.', 'error'); return; }
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
-  // SYNC — must happen on the call stack of the click event.
-  // Any async work before window.open() causes browsers to block it as a popup.
   const win = window.open('about:blank', '_blank');
   if (!win) {
     toast('Popup blocked — please allow popups for this site.', 'error');
     return;
   }
 
-  // Fill popup immediately so it looks active while we work
   win.document.open();
   win.document.write(LOADING_PAGE);
   win.document.close();
 
   if (launchMode === 'fetch') {
-    // Stage 1 — direct fetch
     if (await tryFetch(url, win)) return;
-    // Stage 2 — UV proxy
     if (tryProxy(url, win)) return;
-    // Stage 3 — direct navigate
     if (!win.closed) win.location.href = url;
-
   } else {
-    // Stage 1 — UV proxy
     if (tryProxy(url, win)) return;
-    // Stage 2 — direct fetch
     if (await tryFetch(url, win)) return;
-    // Stage 3 — direct navigate
     if (!win.closed) win.location.href = url;
   }
 }
@@ -334,7 +299,6 @@ function fetchSite() {
   if (!url) { status.textContent = 'Enter a URL.'; return; }
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
-  // SYNC open
   const win = window.open('about:blank', '_blank');
   if (!win) {
     status.textContent = 'Popup blocked! Allow popups to use the fetcher.';
@@ -374,25 +338,19 @@ function fetchSite() {
 
 // ── Boot ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Register UV service worker in the background — non-blocking.
-  // The small dot next to "Proxy" turns green once it's active.
   registerUV();
 
-  // Render game grids
   renderGrid('gamesGrid',     games);
   renderGrid('preLaunchGrid', testingGames);
   renderGrid('proxiesGrid',   proxies);
 
-  // Inject the mode toggle into every game section's header
   ['games', 'Testing', 'proxies'].forEach(sectionId => {
     const header = document.querySelector(`#${sectionId} .section-header`);
     if (header) header.appendChild(buildModeToggle());
   });
 
-  // Search
   initSearch();
 
-  // Nav
   document.getElementById('mainNav').addEventListener('click', e => {
     const link = e.target.closest('.nav-link[data-section]');
     if (!link) return;
@@ -400,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection(link.dataset.section);
   });
 
-  // Game grid click delegation
   ['gamesGrid', 'preLaunchGrid', 'proxiesGrid'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       const card = e.target.closest('.game-card');
@@ -410,17 +367,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Executor
   document.getElementById('btnRunHtml')?.addEventListener('click', executeTyped);
   document.getElementById('btnOpenFile')?.addEventListener('click', executeFile);
 
-  // Fetcher
   document.getElementById('btnFetchSite')?.addEventListener('click', fetchSite);
   document.getElementById('urlInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') fetchSite();
   });
 
-  // Google Form
   document.getElementById('btnOpenForm')?.addEventListener('click', () => {
     window.open(
       'https://docs.google.com/forms/d/e/1FAIpQLScaYcFE6kxkrrnx09OX8QLJZluyDLUeH65pDbRa-I2DapeQ7A/viewform?usp=dialog',
