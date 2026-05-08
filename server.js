@@ -30,6 +30,15 @@ const bare = createBareServer('/bare/');
 // ── Express (static file server) ─────────────────────────────────────────────
 const app = express();
 
+// Prevent caching of UV-proxied responses
+app.use('/service/', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+// uv.sw.js lives at the root (/uv.sw.js) so it can claim /service/ scope
+// without needing a Service-Worker-Allowed header — browser allows any sub-scope
+// of the script's own directory, and root covers everything.
 app.use(express.static(join(__dirname, 'dist')));
 
 // SPA fallback
