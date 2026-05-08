@@ -1,15 +1,9 @@
 // ── Red Portal — Production Server ───────────────────────────────────────────
-// Single-port server that:
-//   • Serves the Vite-built static site from dist/
-//   • Routes /bare/* to the bare server (HTTP + WebSocket upgrades)
-//
-// Koyeb sets PORT via environment variable; default is 8080.
-
-import { createServer }       from 'http';
-import { join, dirname }      from 'path';
-import { fileURLToPath }      from 'url';
-import express                from 'express';
-import BareServer             from '@tomphttp/bare-server-node';
+import { createServer }          from 'http';
+import { join, dirname }         from 'path';
+import { fileURLToPath }         from 'url';
+import express                   from 'express';
+import { createBareServer }      from '@tomphttp/bare-server-node';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '8080', 10);
@@ -30,15 +24,15 @@ function applyCORS(res) {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
 }
 
-// ── Bare server (UV proxy relay) ──────────────────────────────────────────────
-const bare = new BareServer('/bare/');
+// ── Bare server ───────────────────────────────────────────────────────────────
+const bare = createBareServer('/bare/');
 
-// ── Express app (static file server) ─────────────────────────────────────────
+// ── Express (static file server) ─────────────────────────────────────────────
 const app = express();
 
 app.use(express.static(join(__dirname, 'dist')));
 
-// SPA fallback — any unmatched route gets index.html
+// SPA fallback
 app.use((_req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
@@ -47,7 +41,6 @@ app.use((_req, res) => {
 const server = createServer((req, res) => {
   applyCORS(res);
 
-  // Preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
@@ -61,7 +54,7 @@ const server = createServer((req, res) => {
   }
 });
 
-// ── WebSocket upgrades (bare needs this for WS proxying) ─────────────────────
+// ── WebSocket upgrades ────────────────────────────────────────────────────────
 server.on('upgrade', (req, socket, head) => {
   if (bare.shouldRoute(req)) {
     bare.routeUpgrade(req, socket, head);
