@@ -6,9 +6,9 @@ export default defineConfig({
     emptyOutDir: true,
   },
 
-  // Dev-server: proxy /bare/ → local bare server (node copy-uv.js && node server.js).
-  // In production Vercel handles /bare/ via api/bare.js.
   server: {
+    // Dev only: proxy /bare to the bare server running separately (node server.js).
+    // In production on Koyeb, everything runs on the same port — no proxy needed.
     proxy: {
       '/bare': {
         target: 'http://localhost:8080',

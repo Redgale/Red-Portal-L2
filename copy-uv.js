@@ -1,5 +1,5 @@
-// Runs via "postinstall" in package.json.
-// 1. Copies all UV dist files (bundle, handler, etc.) from node_modules → public/uv/
+// Runs automatically via "postinstall" in package.json.
+// 1. Copies UV dist files (bundle, handler…) from node_modules → public/uv/
 // 2. Writes our custom uv.config.js  (overrides the package default)
 // 3. Writes our custom uv.sw.js      (adds the required importScripts wrapper)
 //
@@ -12,13 +12,12 @@ import { resolve } from 'path';
 const dest = resolve('public/uv');
 mkdirSync(dest, { recursive: true });
 
-// ── Step 1: copy everything from the UV package dist ─────────────────
+// ── 1. Copy UV package dist ───────────────────────────────────────────────────
 cpSync(uvPath, dest, { recursive: true });
-console.log('[copy-uv] UV dist files copied to public/uv/');
+console.log('[copy-uv] UV dist copied → public/uv/');
 
-// ── Step 2: write our uv.config.js ───────────────────────────────────
-// This MUST load after uv.bundle.js (which defines `Ultraviolet`).
-// The prefix /service/ is the scope our service worker is registered on.
+// ── 2. uv.config.js ──────────────────────────────────────────────────────────
+// Must load AFTER uv.bundle.js (which defines the Ultraviolet global).
 writeFileSync(
   resolve(dest, 'uv.config.js'),
   `/*global Ultraviolet*/
@@ -36,9 +35,11 @@ self.__uv$config = {
 );
 console.log('[copy-uv] uv.config.js written');
 
-// ── Step 3: write our uv.sw.js ───────────────────────────────────────
-// importScripts order matters: bundle first (defines Ultraviolet global),
-// then config (uses Ultraviolet.codec), then the UV SW class.
+// ── 3. uv.sw.js ──────────────────────────────────────────────────────────────
+// importScripts order matters:
+//   bundle  → defines Ultraviolet global
+//   config  → sets __uv$config (uses Ultraviolet.codec)
+//   then we can instantiate UVServiceWorker
 writeFileSync(
   resolve(dest, 'uv.sw.js'),
   `importScripts('/uv/uv.bundle.js');
