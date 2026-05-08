@@ -1,25 +1,30 @@
 // Runs automatically via "postinstall" in package.json.
-// 1. Copies UV dist files (bundle, handler…) from node_modules → public/uv/
-// 2. Writes our custom uv.config.js  (overrides the package default)
-// 3. Writes our custom uv.sw.js      (adds the required importScripts wrapper)
 //
-// public/uv/ is entirely generated — gitignore it, never commit it.
+// 1. Copies UV dist files from node_modules → public/uv/
+// 2. Writes public/uv/uv.config.js  (our custom config)
+// 3. Writes public/uv.sw.js          (SW at root — avoids scope restrictions)
+//
+// Putting the SW at /uv.sw.js (root) means its default max-scope is /,
+// so it can freely claim /service/ without needing a Service-Worker-Allowed header.
+// Firefox is strict about this; a script at /uv/uv.sw.js can only claim /uv/* by default.
 
 import { uvPath } from '@titaniumnetwork-dev/ultraviolet';
 import { cpSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 
-const dest = resolve('public/uv');
-mkdirSync(dest, { recursive: true });
+const uvDest  = resolve('public/uv');
+const pubDest = resolve('public');
 
-// ── 1. Copy UV package dist ───────────────────────────────────────────────────
-cpSync(uvPath, dest, { recursive: true });
+mkdirSync(uvDest, { recursive: true });
+
+// ── 1. Copy UV package dist into public/uv/ ───────────────────────────────────
+cpSync(uvPath, uvDest, { recursive: true });
 console.log('[copy-uv] UV dist copied → public/uv/');
 
-// ── 2. uv.config.js ──────────────────────────────────────────────────────────
+// ── 2. Write public/uv/uv.config.js ──────────────────────────────────────────
 // Must load AFTER uv.bundle.js (which defines the Ultraviolet global).
 writeFileSync(
-  resolve(dest, 'uv.config.js'),
+  resolve(uvDest, 'uv.config.js'),
   `/*global Ultraviolet*/
 self.__uv$config = {
   prefix:    '/service/',
@@ -29,19 +34,18 @@ self.__uv$config = {
   handler:   '/uv/uv.handler.js',
   bundle:    '/uv/uv.bundle.js',
   config:    '/uv/uv.config.js',
-  sw:        '/uv/uv.sw.js',
+  sw:        '/uv.sw.js',
 };
 `,
 );
-console.log('[copy-uv] uv.config.js written');
+console.log('[copy-uv] uv.config.js written → public/uv/uv.config.js');
 
-// ── 3. uv.sw.js ──────────────────────────────────────────────────────────────
-// importScripts order matters:
-//   bundle  → defines Ultraviolet global
-//   config  → sets __uv$config (uses Ultraviolet.codec)
-//   then we can instantiate UVServiceWorker
+// ── 3. Write public/uv.sw.js (at root, not inside /uv/) ──────────────────────
+// Being at the root means the browser allows it to claim /service/ without any
+// special Service-Worker-Allowed header.
+// importScripts order: bundle (defines Ultraviolet) → config (uses Ultraviolet.codec)
 writeFileSync(
-  resolve(dest, 'uv.sw.js'),
+  resolve(pubDest, 'uv.sw.js'),
   `importScripts('/uv/uv.bundle.js');
 importScripts('/uv/uv.config.js');
 
@@ -49,4 +53,4 @@ const sw = new UVServiceWorker();
 self.addEventListener('fetch', event => sw.fetch(event));
 `,
 );
-console.log('[copy-uv] uv.sw.js written');
+console.log('[copy-uv] uv.sw.js written → public/uv.sw.js');
