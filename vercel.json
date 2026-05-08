@@ -12,10 +12,15 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "*"       },
-        { "key": "X-Content-Type-Options",        "value": "nosniff" },
+        { "key": "Access-Control-Allow-Origin",   "value": "*" },
+        { "key": "Access-Control-Allow-Methods",  "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD" },
+        { "key": "Access-Control-Allow-Headers",  "value": "*" },
+        { "key": "Access-Control-Expose-Headers", "value": "*" },
+        { "key": "Access-Control-Max-Age",        "value": "86400" },
+        { "key": "Cross-Origin-Resource-Policy",  "value": "cross-origin" },
         { "key": "Cross-Origin-Opener-Policy",    "value": "same-origin-allow-popups" },
-        { "key": "Cross-Origin-Embedder-Policy",  "value": "unsafe-none" }
+        { "key": "Cross-Origin-Embedder-Policy",  "value": "unsafe-none" },
+        { "key": "X-Content-Type-Options",        "value": "nosniff" }
       ]
     },
     {
