@@ -1,14 +1,15 @@
 // ── Red Portal — Production Server ───────────────────────────────────────────
-import { createServer }          from 'http';
-import { join, dirname }         from 'path';
-import { fileURLToPath }         from 'url';
-import express                   from 'express';
-import { createBareServer }      from '@tomphttp/bare-server-node';
+import { createServer }       from 'http';
+import { join, dirname }      from 'path';
+import { fileURLToPath }      from 'url';
+import express                from 'express';
+import { createBareServer }   from '@tomphttp/bare-server-node';
+import { WispServer }         from 'wisp-server-node';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '8080', 10);
 
-// ── CORS headers applied to every response ───────────────────────────────────
+// ── CORS headers ──────────────────────────────────────────────────────────────
 const CORS = {
   'Access-Control-Allow-Origin':   '*',
   'Access-Control-Allow-Methods':  'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD',
@@ -24,24 +25,20 @@ function applyCORS(res) {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
 }
 
-// ── Bare server ───────────────────────────────────────────────────────────────
+// ── Servers ───────────────────────────────────────────────────────────────────
 const bare = createBareServer('/bare/');
+const wisp = new WispServer();
 
-// ── Express (static file server) ─────────────────────────────────────────────
+// ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
 
-// Prevent caching of UV-proxied responses
 app.use('/service/', (_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   next();
 });
 
-// uv.sw.js lives at the root (/uv.sw.js) so it can claim /service/ scope
-// without needing a Service-Worker-Allowed header — browser allows any sub-scope
-// of the script's own directory, and root covers everything.
 app.use(express.static(join(__dirname, 'dist')));
 
-// SPA fallback
 app.use((_req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
@@ -64,8 +61,12 @@ const server = createServer((req, res) => {
 });
 
 // ── WebSocket upgrades ────────────────────────────────────────────────────────
+// /wisp/ → wisp server (used by epoxy transport for encrypted WS tunneling)
+// /bare/ → bare server (legacy WS proxy, kept as fallback)
 server.on('upgrade', (req, socket, head) => {
-  if (bare.shouldRoute(req)) {
+  if (req.url.startsWith('/wisp/')) {
+    wisp.routeRequest(req, socket, head);
+  } else if (bare.shouldRoute(req)) {
     bare.routeUpgrade(req, socket, head);
   } else {
     socket.destroy();

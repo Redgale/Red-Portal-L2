@@ -8,12 +8,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
   <!--
-    uv.bundle.js must load BEFORE uv.config.js because the config references
-    the `Ultraviolet` global that the bundle exposes.
-    Both must load before main.js registers the service worker.
+    Load order matters:
+      1. uv.bundle.js  — defines the Ultraviolet global
+      2. uv.config.js  — sets __uv$config (uses Ultraviolet.codec)
+      3. baremux/index.js — exposes BareMuxConnection global used in main.js
+                            to set the epoxy transport before the SW is ready
   -->
   <script src="/uv/uv.bundle.js"></script>
   <script src="/uv/uv.config.js"></script>
+  <script src="/baremux/index.js"></script>
 </head>
 <body>
 
