@@ -1,21 +1,32 @@
 // Runs automatically via "postinstall" in package.json.
 //
-// Copies all static client-side assets needed by UV + bare-mux into public/:
-//   public/uv/          ← UV dist (bundle, handler, sw, config)
-//   public/baremux/     ← bare-mux client + SharedWorker
-//   public/epoxy/       ← epoxy transport module
-//   public/uv.sw.js     ← our root-level SW wrapper (claims /service/ scope)
+// Uses createRequire to resolve each package's root directory — bare-mux and
+// epoxy-transport don't export a path helper like UV does, so we find them via
+// their package.json instead.
+//
+// File layout after this runs:
+//   public/uv/         ← UV dist (bundle, handler, sw, config-overwritten)
+//   public/baremux/    ← bare-mux dist (index.js + worker.js)
+//   public/epoxy/      ← epoxy-transport dist (index.mjs)
+//   public/uv.sw.js    ← our root-level SW wrapper
 
-import { uvPath }     from '@titaniumnetwork-dev/ultraviolet';
-import { bareMuxPath } from '@mercuryworkshop/bare-mux';
-import { epoxyPath }  from '@mercuryworkshop/epoxy-transport';
+import { uvPath }       from '@titaniumnetwork-dev/ultraviolet';
+import { createRequire } from 'module';
 import { cpSync, mkdirSync, writeFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const uvDest     = resolve('public/uv');
-const baremuxDest = resolve('public/baremux');
-const epoxyDest  = resolve('public/epoxy');
-const pubDest    = resolve('public');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const require   = createRequire(import.meta.url);
+
+// Resolve package root directories via their package.json
+const bareMuxDir = dirname(require.resolve('@mercuryworkshop/bare-mux/package.json'));
+const epoxyDir   = dirname(require.resolve('@mercuryworkshop/epoxy-transport/package.json'));
+
+const uvDest      = resolve(__dirname, 'public/uv');
+const baremuxDest = resolve(__dirname, 'public/baremux');
+const epoxyDest   = resolve(__dirname, 'public/epoxy');
+const pubDest     = resolve(__dirname, 'public');
 
 for (const dir of [uvDest, baremuxDest, epoxyDest]) {
   mkdirSync(dir, { recursive: true });
@@ -25,15 +36,17 @@ for (const dir of [uvDest, baremuxDest, epoxyDest]) {
 cpSync(uvPath, uvDest, { recursive: true });
 console.log('[copy-uv] UV dist → public/uv/');
 
-// ── 2. bare-mux client files ──────────────────────────────────────────────────
-cpSync(bareMuxPath, baremuxDest, { recursive: true });
-console.log('[copy-uv] bare-mux → public/baremux/');
+// ── 2. bare-mux dist ──────────────────────────────────────────────────────────
+// Copies index.js (page-side BareMuxConnection) and worker.js (SharedWorker)
+cpSync(resolve(bareMuxDir, 'dist'), baremuxDest, { recursive: true });
+console.log('[copy-uv] bare-mux dist → public/baremux/');
 
-// ── 3. epoxy transport ────────────────────────────────────────────────────────
-cpSync(epoxyPath, epoxyDest, { recursive: true });
-console.log('[copy-uv] epoxy → public/epoxy/');
+// ── 3. epoxy-transport dist ───────────────────────────────────────────────────
+// Copies index.mjs (the transport loaded by the SharedWorker at runtime)
+cpSync(resolve(epoxyDir, 'dist'), epoxyDest, { recursive: true });
+console.log('[copy-uv] epoxy dist → public/epoxy/');
 
-// ── 4. Custom uv.config.js (overwrites the package default) ──────────────────
+// ── 4. Custom uv.config.js ────────────────────────────────────────────────────
 writeFileSync(
   resolve(uvDest, 'uv.config.js'),
   `/*global Ultraviolet*/
@@ -52,8 +65,8 @@ self.__uv$config = {
 console.log('[copy-uv] uv.config.js → public/uv/uv.config.js');
 
 // ── 5. Root-level SW wrapper ──────────────────────────────────────────────────
-// Lives at / so it can claim scope /service/ without Service-Worker-Allowed header.
-// Imports the package's own uv.sw.js which defines UVServiceWorker.
+// At / so it can claim scope /service/ without any Service-Worker-Allowed header.
+// Imports the package's uv.sw.js last — it defines UVServiceWorker.
 writeFileSync(
   resolve(pubDest, 'uv.sw.js'),
   `importScripts('/uv/uv.bundle.js');
