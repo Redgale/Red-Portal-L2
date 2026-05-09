@@ -11,12 +11,12 @@
     Load order matters:
       1. uv.bundle.js  — defines the Ultraviolet global
       2. uv.config.js  — sets __uv$config (uses Ultraviolet.codec)
-      3. baremux/index.js — exposes BareMuxConnection global used in main.js
-                            to set the epoxy transport before the SW is ready
+    Note: BareMuxConnection is now imported directly in main.js via ESM,
+    so baremux/index.js no longer needs to be loaded as a global script.
+    The baremux/worker.js file is still served from /baremux/ for the SharedWorker.
   -->
   <script src="/uv/uv.bundle.js"></script>
   <script src="/uv/uv.config.js"></script>
-  <script src="/baremux/index.js"></script>
 </head>
 <body>
 
