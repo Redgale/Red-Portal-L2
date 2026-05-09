@@ -158,10 +158,30 @@ const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 </style></head>
 <body><div class="ring"></div><p>Loading game…</p></body></html>`;
 
+// ── bare-mux transport setup ──────────────────────────────────────────
+// Must run BEFORE registerUV() — bare-mux needs a transport set before the
+// service worker starts handling requests, otherwise requests fail immediately.
+// BareMuxConnection is a global set by /baremux/index.js (loaded in index.html).
+async function initTransport() {
+  try {
+    const wispUrl =
+      (location.protocol === 'https:' ? 'wss' : 'ws') +
+      '://' + location.host + '/wisp/';
+
+    const conn = new BareMuxConnection('/baremux/worker.js');
+
+    // Only set if not already configured (avoids redundant SharedWorker messages)
+    if (!await conn.getTransport()) {
+      await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
+    }
+    console.log('[bare-mux] epoxy transport ready via', wispUrl);
+  } catch (err) {
+    console.warn('[bare-mux] transport init failed:', err);
+  }
+}
+
 // ── UV service worker registration ───────────────────────────────────
-// SW lives at /uv.sw.js (root) so its default max-scope is /,
-// meaning it can freely claim /service/ on all browsers without any
-// Service-Worker-Allowed header tricks.
+// SW at /uv.sw.js (root) — can claim /service/ scope on all browsers.
 async function registerUV() {
   if (!('serviceWorker' in navigator)) {
     console.warn('[UV] Service workers not supported');
@@ -338,7 +358,9 @@ function fetchSite() {
 
 // ── Boot ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  registerUV();
+  // Transport MUST be set before SW registration to avoid a race condition
+  // where the SW starts handling requests before bare-mux has a transport.
+  initTransport().then(() => registerUV());
 
   renderGrid('gamesGrid',     games);
   renderGrid('preLaunchGrid', testingGames);
