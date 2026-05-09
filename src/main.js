@@ -188,8 +188,14 @@ async function registerUV() {
     return;
   }
   try {
+    // Scope MUST be '/' (not '/service/') so the main page becomes a SW client.
+    // bare-mux works by having the SW ask a client page for a SharedWorker
+    // MessagePort. With scope '/service/' only the proxied iframe is a client —
+    // and it has no BareMuxConnection. With scope '/' the main page (which ran
+    // initTransport()) is also a client and can supply the port correctly.
+    // The SW file is at the root so no Service-Worker-Allowed header is needed.
     const reg = await navigator.serviceWorker.register('/uv.sw.js', {
-      scope: '/service/',
+      scope: '/',
     });
 
     await new Promise(resolve => {
@@ -245,10 +251,14 @@ function tryProxy(url, win) {
   if (!uvUrl) return false;
 
   // UV returns a root-relative path (/service/…).
-  // Inside a blob page the base is blob://… so relative paths never resolve —
-  // prefix with the real origin to make it absolute.
+  // Blob pages have a null base origin so relative paths never resolve —
+  // make it absolute so the browser can reach the SW-controlled URL.
   const absUvUrl = location.origin + uvUrl;
 
+  // We set the iframe src via JS rather than hard-coding it in the HTML so the
+  // blob page's own load fires first. This gives Chrome time to register the
+  // blob window as a reachable SW client before the iframe starts fetching,
+  // preventing the "all clients returned an invalid MessagePort" race.
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -260,7 +270,16 @@ function tryProxy(url, win) {
   </style>
 </head>
 <body>
-  <iframe src="${absUvUrl}" allowfullscreen></iframe>
+  <iframe id="f" allowfullscreen></iframe>
+  <script>
+    // Small delay so the blob window is fully registered as a SW client
+    // before the iframe begins firing fetch events the SW must intercept.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.getElementById('f').src = ${JSON.stringify(absUvUrl)};
+      })
+    );
+  </script>
 </body>
 </html>`;
 
