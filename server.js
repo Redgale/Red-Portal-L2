@@ -4,7 +4,7 @@ import { join, dirname }      from 'path';
 import { fileURLToPath }      from 'url';
 import express                from 'express';
 import { createBareServer }   from '@tomphttp/bare-server-node';
-import { WispServer }         from 'wisp-server-node';
+import { server as wisp }     from '@mercuryworkshop/wisp-js/server';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '8080', 10);
@@ -25,9 +25,8 @@ function applyCORS(res) {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
 }
 
-// ── Servers ───────────────────────────────────────────────────────────────────
+// ── Bare server ───────────────────────────────────────────────────────────────
 const bare = createBareServer('/bare/');
-const wisp = new WispServer();
 
 // ── Express ───────────────────────────────────────────────────────────────────
 const app = express();
@@ -61,8 +60,8 @@ const server = createServer((req, res) => {
 });
 
 // ── WebSocket upgrades ────────────────────────────────────────────────────────
-// /wisp/ → wisp server (used by epoxy transport for encrypted WS tunneling)
-// /bare/ → bare server (legacy WS proxy, kept as fallback)
+// /wisp/ → wisp-js server (epoxy transport tunnels through here)
+// /bare/ → bare server (fallback WS proxy)
 server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/wisp/')) {
     wisp.routeRequest(req, socket, head);
