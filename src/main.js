@@ -1,5 +1,6 @@
 import '../style.css';
 import { games, testingGames, proxies } from './games.js';
+import { BareMuxConnection } from '@mercuryworkshop/bare-mux';
 
 // ── Color bands for game cards (cycles through) ──────────────────────
 const BANDS = [
@@ -161,7 +162,6 @@ const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 // ── bare-mux transport setup ──────────────────────────────────────────
 // Must run BEFORE registerUV() — bare-mux needs a transport set before the
 // service worker starts handling requests, otherwise requests fail immediately.
-// BareMuxConnection is a global set by /baremux/index.js (loaded in index.html).
 async function initTransport() {
   try {
     const wispUrl =
