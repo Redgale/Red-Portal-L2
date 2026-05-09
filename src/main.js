@@ -243,7 +243,31 @@ function tryFetch(url, win) {
 function tryProxy(url, win) {
   const uvUrl = getUVUrl(url);
   if (!uvUrl) return false;
-  if (!win.closed) win.location.href = uvUrl;
+
+  // Wrap the UV proxy URL in a full-screen iframe inside a blob page.
+  // This keeps a blob:// URL in the address bar while the service worker
+  // still intercepts requests inside the iframe (the iframe's origin matches
+  // the SW's /service/ scope, so interception works normally).
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    iframe { width: 100%; height: 100%; border: none; display: block; }
+  </style>
+</head>
+<body>
+  <iframe
+    src="${uvUrl}"
+    allow="fullscreen; autoplay; clipboard-read; clipboard-write"
+  ></iframe>
+</body>
+</html>`;
+
+  const proxyBlob = new Blob([html], { type: 'text/html' });
+  if (!win.closed) win.location.href = URL.createObjectURL(proxyBlob);
   return true;
 }
 
