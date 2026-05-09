@@ -244,10 +244,11 @@ function tryProxy(url, win) {
   const uvUrl = getUVUrl(url);
   if (!uvUrl) return false;
 
-  // Wrap the UV proxy URL in a full-screen iframe inside a blob page.
-  // This keeps a blob:// URL in the address bar while the service worker
-  // still intercepts requests inside the iframe (the iframe's origin matches
-  // the SW's /service/ scope, so interception works normally).
+  // UV returns a root-relative path (/service/…).
+  // Inside a blob page the base is blob://… so relative paths never resolve —
+  // prefix with the real origin to make it absolute.
+  const absUvUrl = location.origin + uvUrl;
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -259,15 +260,12 @@ function tryProxy(url, win) {
   </style>
 </head>
 <body>
-  <iframe
-    src="${uvUrl}"
-    allow="fullscreen; autoplay; clipboard-read; clipboard-write"
-  ></iframe>
+  <iframe src="${absUvUrl}" allowfullscreen></iframe>
 </body>
 </html>`;
 
-  const proxyBlob = new Blob([html], { type: 'text/html' });
-  if (!win.closed) win.location.href = URL.createObjectURL(proxyBlob);
+  const blob = new Blob([html], { type: 'text/html' });
+  if (!win.closed) win.location.href = URL.createObjectURL(blob);
   return true;
 }
 
