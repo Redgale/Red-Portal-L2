@@ -2,15 +2,14 @@
 //
 // Uses createRequire to resolve each package's root directory — bare-mux and
 // epoxy-transport don't export a path helper like UV does, so we find them via
-// their package.json instead.
+// their main entry point and walk up to the package root.
 //
 // File layout after this runs:
 //   public/uv/         ← UV dist (bundle, handler, sw, config-overwritten)
 //   public/baremux/    ← bare-mux dist (index.js + worker.js)
 //   public/epoxy/      ← epoxy-transport dist (index.mjs)
 //   public/uv.sw.js    ← our root-level SW wrapper
-
-import { uvPath }       from '@titaniumnetwork-dev/ultraviolet';
+import { uvPath }        from '@titaniumnetwork-dev/ultraviolet';
 import { createRequire } from 'module';
 import { cpSync, mkdirSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -19,9 +18,27 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require   = createRequire(import.meta.url);
 
-// Resolve package root directories via their package.json
-const bareMuxDir = dirname(require.resolve('@mercuryworkshop/bare-mux/package.json'));
-const epoxyDir   = dirname(require.resolve('@mercuryworkshop/epoxy-transport/package.json'));
+// Walk up from a resolved file path until we find the package root
+// (i.e. the directory that contains a package.json with a matching name).
+function pkgRoot(resolvedFile) {
+  let dir = dirname(resolvedFile);
+  while (true) {
+    try {
+      // If this directory has a package.json, it's the root.
+      require(resolve(dir, 'package.json'));
+      return dir;
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) throw new Error(`Could not find package root for ${resolvedFile}`);
+      dir = parent;
+    }
+  }
+}
+
+// Resolve package root directories via their main entry point instead of
+// /package.json (which isn't listed in their "exports" map).
+const bareMuxDir = pkgRoot(require.resolve('@mercuryworkshop/bare-mux'));
+const epoxyDir   = pkgRoot(require.resolve('@mercuryworkshop/epoxy-transport'));
 
 const uvDest      = resolve(__dirname, 'public/uv');
 const baremuxDest = resolve(__dirname, 'public/baremux');
@@ -72,9 +89,7 @@ writeFileSync(
   `importScripts('/uv/uv.bundle.js');
 importScripts('/uv/uv.config.js');
 importScripts('/uv/uv.sw.js');
-
 const uv = new UVServiceWorker();
-
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
