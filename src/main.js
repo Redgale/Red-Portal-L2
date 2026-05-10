@@ -1,20 +1,15 @@
 import '../style.css';
-import { games, testingGames, proxies } from './games.js';
+import { games, testingGames } from './games.js';
 import { BareMuxConnection } from '@mercuryworkshop/bare-mux';
 
-// ── Color bands for game cards (cycles through) ──────────────────────
 const BANDS = [
   '#FF1C1C', '#FF6820', '#FFB300',
   '#20FF8A', '#00D4FF', '#9B20FF', '#FF2099',
 ];
 
-// ── Launch mode — 'fetch' or 'proxy' ────────────────────────────────
 let launchMode = 'fetch';
-
-// ── UV readiness flag ────────────────────────────────────────────────
 let uvReady = false;
 
-// ── Game card emoji icons ─────────────────────────────────────────────
 function getIcon(name) {
   const n = name.toLowerCase();
   if (n.includes('geo') || n.includes('dash'))  return '🔷';
@@ -36,17 +31,14 @@ function getIcon(name) {
   return '🎯';
 }
 
-// ── Render game grid ─────────────────────────────────────────────────
 function renderGrid(containerId, list) {
   const grid = document.getElementById(containerId);
   if (!grid) return;
   grid.innerHTML = '';
-
   if (!list.length) {
     grid.innerHTML = '<p class="empty-msg">No games yet — add some in src/games.js</p>';
     return;
   }
-
   list.forEach((game, i) => {
     const band = BANDS[i % BANDS.length];
     const card = document.createElement('a');
@@ -66,7 +58,6 @@ function renderGrid(containerId, list) {
   });
 }
 
-// ── Mode toggle UI ───────────────────────────────────────────────────
 function buildModeToggle() {
   const uid = Math.random().toString(36).slice(2);
   const wrap = document.createElement('div');
@@ -82,7 +73,6 @@ function buildModeToggle() {
             title="Try UV proxy first, fall back to direct fetch">
       🔓 Proxy <span class="uv-dot" id="uvDot-${uid}"></span>
     </button>`;
-
   wrap.addEventListener('click', e => {
     const btn = e.target.closest('.mode-btn[data-mode]');
     if (!btn) return;
@@ -97,7 +87,6 @@ function buildModeToggle() {
       'info'
     );
   });
-
   return wrap;
 }
 
@@ -105,7 +94,6 @@ function setUVDotState(ready) {
   document.querySelectorAll('.uv-dot').forEach(d => d.classList.toggle('ready', ready));
 }
 
-// ── Search / filter ──────────────────────────────────────────────────
 function initSearch() {
   const input = document.getElementById('gameSearch');
   if (!input) return;
@@ -129,7 +117,6 @@ function initSearch() {
   });
 }
 
-// ── Toast notifications ──────────────────────────────────────────────
 function toast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   const t = document.createElement('div');
@@ -143,9 +130,8 @@ function toast(message, type = 'info') {
   }, 3500);
 }
 
-// ── Loading page injected into popup immediately ─────────────────────
 const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Loading…</title>
+<title>Loading\u2026</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:#06070E;display:flex;flex-direction:column;align-items:center;
@@ -157,21 +143,17 @@ const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   @keyframes spin{to{transform:rotate(360deg)}}
   p{font-size:.78rem;letter-spacing:.18em;color:#505070;text-transform:uppercase;}
 </style></head>
-<body><div class="ring"></div><p>Loading game…</p></body></html>`;
+<body><div class="ring"></div><p>Loading game\u2026</p></body></html>`;
 
-// ── bare-mux transport setup ──────────────────────────────────────────
-// Must run BEFORE registerUV() — bare-mux needs a transport set before the
-// service worker starts handling requests, otherwise requests fail immediately.
-
+// ── bare-mux transport ────────────────────────────────────────────────
+// BareMuxConnection is imported from the npm package above — NOT a global.
+// Loading it as a <script> tag does not work with ESM and breaks this.
 async function initTransport() {
   try {
     const wispUrl =
       (location.protocol === 'https:' ? 'wss' : 'ws') +
       '://' + location.host + '/wisp/';
-
     const conn = new BareMuxConnection('/baremux/worker.js');
-
-    // Only set if not already configured (avoids redundant SharedWorker messages)
     if (!await conn.getTransport()) {
       await conn.setTransport('/epoxy/index.mjs', [{ wisp: wispUrl }]);
     }
@@ -181,18 +163,16 @@ async function initTransport() {
   }
 }
 
-// ── UV service worker registration ───────────────────────────────────
-// SW at /uv.sw.js (root) — can claim /service/ scope on all browsers.
+// ── UV service worker ─────────────────────────────────────────────────
+// Scope '/' (not '/service/') so the main page is a SW client and can
+// hand the bare-mux SharedWorker MessagePort to the SW on request.
 async function registerUV() {
   if (!('serviceWorker' in navigator)) {
     console.warn('[UV] Service workers not supported');
     return;
   }
   try {
-    const reg = await navigator.serviceWorker.register('/uv.sw.js', {
-      scope: '/service/',
-    });
-
+    const reg = await navigator.serviceWorker.register('/uv.sw.js', { scope: '/' });
     await new Promise(resolve => {
       if (reg.active) { resolve(); return; }
       const sw = reg.installing || reg.waiting;
@@ -201,7 +181,6 @@ async function registerUV() {
       });
       setTimeout(resolve, 3000);
     });
-
     uvReady = true;
     setUVDotState(true);
     console.log('[UV] Service worker ready');
@@ -220,11 +199,10 @@ function getUVUrl(targetUrl) {
   }
 }
 
-// ── Stage helpers ────────────────────────────────────────────────────
+// ── Stage helpers ─────────────────────────────────────────────────────
 function tryFetch(url, win) {
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 12_000);
-
   return fetch(url, { signal: controller.signal })
     .then(res => {
       clearTimeout(tid);
@@ -241,14 +219,41 @@ function tryFetch(url, win) {
     .catch(() => { clearTimeout(tid); return false; });
 }
 
+// Writes the proxy shell directly into the already-open about:blank window.
+// about:blank stays in the address bar. The iframe src is set after two
+// animation frames so the window is a registered SW client before fetch fires.
 function tryProxy(url, win) {
   const uvUrl = getUVUrl(url);
   if (!uvUrl) return false;
-  if (!win.closed) win.location.href = uvUrl;
+  // Must be absolute — about:blank has no base URL for relative paths.
+  const absUvUrl = location.origin + uvUrl;
+  win.document.open();
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;overflow:hidden;background:#000}
+    iframe{width:100%;height:100%;border:none;display:block}
+  </style>
+</head>
+<body>
+  <iframe id="f" allowfullscreen></iframe>
+  <script>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        document.getElementById('f').src = ${JSON.stringify(absUvUrl)};
+      })
+    );
+  <\/script>
+</body>
+</html>`);
+  win.document.close();
   return true;
 }
 
-// ── openGame ─────────────────────────────────────────────────────────
+// ── openGame ──────────────────────────────────────────────────────────
 async function openGame(url) {
   if (!url) { toast('No URL set for this game.', 'error'); return; }
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -258,7 +263,6 @@ async function openGame(url) {
     toast('Popup blocked — please allow popups for this site.', 'error');
     return;
   }
-
   win.document.open();
   win.document.write(LOADING_PAGE);
   win.document.close();
@@ -274,7 +278,7 @@ async function openGame(url) {
   }
 }
 
-// ── Navigation ───────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────────────
 function showSection(id) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
@@ -284,7 +288,7 @@ function showSection(id) {
   if (link) link.classList.add('active');
 }
 
-// ── HTML Executor ────────────────────────────────────────────────────
+// ── HTML Executor ─────────────────────────────────────────────────────
 function executeTyped() {
   const html   = document.getElementById('htmlInput').value;
   const status = document.getElementById('execTypedStatus');
@@ -312,7 +316,7 @@ function executeFile() {
   reader.readAsText(file);
 }
 
-// ── Website Fetcher ──────────────────────────────────────────────────
+// ── Website Fetcher ───────────────────────────────────────────────────
 function fetchSite() {
   const input  = document.getElementById('urlInput');
   const status = document.getElementById('fetchStatus');
@@ -321,15 +325,12 @@ function fetchSite() {
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
   const win = window.open('about:blank', '_blank');
-  if (!win) {
-    status.textContent = 'Popup blocked! Allow popups to use the fetcher.';
-    return;
-  }
+  if (!win) { status.textContent = 'Popup blocked! Allow popups to use the fetcher.'; return; }
   win.document.open();
   win.document.write(LOADING_PAGE);
   win.document.close();
 
-  status.textContent = `Fetching ${url}…`;
+  status.textContent = `Fetching ${url}...`;
   input.value = '';
 
   const controller = new AbortController();
@@ -345,10 +346,8 @@ function fetchSite() {
       status.textContent = 'Opened!';
     })
     .catch(() => {
-      const uvUrl = getUVUrl(url);
-      if (uvUrl) {
-        if (!win.closed) win.location.href = uvUrl;
-        status.textContent = 'Proxying through UV…';
+      if (tryProxy(url, win)) {
+        status.textContent = 'Proxying through UV...';
       } else {
         if (!win.closed) win.location.href = url;
         status.textContent = 'Fetch blocked — navigated directly instead.';
@@ -357,21 +356,90 @@ function fetchSite() {
     .finally(() => setTimeout(() => { status.textContent = ''; }, 4000));
 }
 
-// ── Boot ─────────────────────────────────────────────────────────────
+// ── In-page Proxy Browser ─────────────────────────────────────────────
+function initProxyBrowser() {
+  const browser     = document.getElementById('proxyBrowser');
+  const frame       = document.getElementById('browserFrame');
+  const bar         = document.getElementById('browserBar');
+  const goBtn       = document.getElementById('browserGo');
+  const backBtn     = document.getElementById('browserBack');
+  const fwdBtn      = document.getElementById('browserForward');
+  const reloadBtn   = document.getElementById('browserReload');
+  const homeBtn     = document.getElementById('browserHome');
+  const fsBtn       = document.getElementById('browserFullscreen');
+  const placeholder = document.getElementById('browserPlaceholder');
+  const lock        = document.getElementById('browserLock');
+  const statusText  = document.getElementById('browserStatusText');
+
+  if (!frame) return;
+
+  const DDGO_HOME = 'https://duckduckgo.com';
+  function setStatus(msg) { statusText.textContent = msg; }
+
+  function navigateTo(input) {
+    let url = input.trim();
+    if (!url) return;
+
+    const looksLikeUrl = /^https?:\/\//i.test(url) ||
+      (/^[a-z0-9-]+(\.[a-z]{2,})+/i.test(url) && !url.includes(' '));
+
+    if (!looksLikeUrl) {
+      url = `${DDGO_HOME}/?q=${encodeURIComponent(url)}`;
+    } else if (!/^https?:\/\//i.test(url)) {
+      url = 'https://' + url;
+    }
+
+    const uvUrl = getUVUrl(url);
+    if (!uvUrl) {
+      setStatus('Proxy not ready yet — wait a moment and try again.');
+      return;
+    }
+
+    placeholder.style.display = 'none';
+    frame.style.display = 'block';
+    lock.style.stroke = '#20FF8A';
+    setStatus(`Loading ${url}...`);
+    bar.value = url;
+    frame.src = location.origin + uvUrl;
+    frame.onload = () => setStatus(url);
+  }
+
+  goBtn.addEventListener('click',  () => navigateTo(bar.value));
+  bar.addEventListener('keydown',  e => { if (e.key === 'Enter') navigateTo(bar.value); });
+  bar.addEventListener('focus',    () => bar.select());
+
+  backBtn.addEventListener('click',   () => { try { frame.contentWindow.history.back();    } catch {} });
+  fwdBtn.addEventListener('click',    () => { try { frame.contentWindow.history.forward(); } catch {} });
+  reloadBtn.addEventListener('click', () => { try { frame.contentWindow.location.reload(); } catch { frame.src = frame.src; } });
+  homeBtn.addEventListener('click',   () => navigateTo(DDGO_HOME));
+
+  fsBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      browser.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
+    }
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const isFs = !!document.fullscreenElement;
+    fsBtn.innerHTML = isFs ? '&#x2715;' : '&#x26F6;';
+    fsBtn.title     = isFs ? 'Exit Fullscreen' : 'Fullscreen';
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Transport MUST be set before SW registration to avoid a race condition
-  // where the SW starts handling requests before bare-mux has a transport.
   initTransport().then(() => registerUV());
 
   renderGrid('gamesGrid',     games);
   renderGrid('preLaunchGrid', testingGames);
-  renderGrid('proxiesGrid',   proxies);
 
-  ['games', 'Testing', 'proxies'].forEach(sectionId => {
+  ['games', 'Testing'].forEach(sectionId => {
     const header = document.querySelector(`#${sectionId} .section-header`);
     if (header) header.appendChild(buildModeToggle());
   });
 
+  initProxyBrowser();
   initSearch();
 
   document.getElementById('mainNav').addEventListener('click', e => {
@@ -381,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection(link.dataset.section);
   });
 
-  ['gamesGrid', 'preLaunchGrid', 'proxiesGrid'].forEach(id => {
+  ['gamesGrid', 'preLaunchGrid'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       const card = e.target.closest('.game-card');
       if (!card) return;
