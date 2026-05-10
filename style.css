@@ -570,7 +570,6 @@ input[type="file"] { cursor: pointer; }
 .proxy-browser {
   display: flex;
   flex-direction: column;
-  gap: 0;
   border: 1px solid rgba(255, 28, 28, 0.25);
   border-radius: 12px;
   overflow: hidden;
@@ -579,7 +578,12 @@ input[type="file"] { cursor: pointer; }
   min-height: 500px;
 }
 
-/* Toolbar row */
+/* Fullscreen: browser fills the whole screen */
+.proxy-browser:fullscreen        { border-radius: 0; border: none; height: 100vh; }
+.proxy-browser:-webkit-full-screen { border-radius: 0; border: none; height: 100vh; }
+.proxy-browser:-moz-full-screen  { border-radius: 0; border: none; height: 100vh; }
+
+/* Toolbar */
 .browser-toolbar {
   display: flex;
   align-items: center;
@@ -588,11 +592,13 @@ input[type="file"] { cursor: pointer; }
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 28, 28, 0.15);
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .browser-btn {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #aaa;
   border-radius: 7px;
   width: 34px;
@@ -610,17 +616,21 @@ input[type="file"] { cursor: pointer; }
   color: #FF1C1C;
 }
 
-/* Address bar wrapper */
+/* Address bar wrapper
+   flex:1 + min-width:0 is the fix — without min-width:0 a flex child
+   refuses to shrink below its content size, causing the overflow. */
 .browser-bar-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 0 10px;
   gap: 8px;
   height: 34px;
+  overflow: hidden;
   transition: border-color 0.2s;
 }
 .browser-bar-wrap:focus-within {
@@ -637,13 +647,16 @@ input[type="file"] { cursor: pointer; }
 
 .browser-bar {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
   color: #e0e0e0;
   font-size: 0.82rem;
   font-family: 'Chakra Petch', monospace;
-  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .browser-bar::placeholder { color: #555; }
 
@@ -658,27 +671,30 @@ input[type="file"] { cursor: pointer; }
   border-radius: 5px;
   cursor: pointer;
   flex-shrink: 0;
+  white-space: nowrap;
   transition: background 0.15s;
 }
 .browser-go:hover { background: #cc0000; }
 
-/* Thin status bar */
+/* Status bar */
 .browser-status {
   padding: 4px 14px;
   font-size: 0.7rem;
   color: #505070;
   font-family: 'Chakra Petch', monospace;
-  background: rgba(0,0,0,0.3);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex-shrink: 0;
 }
 
-/* Viewport fills remaining height */
+/* Viewport — min-height:0 lets this flex child shrink so the iframe
+   doesn't push the browser taller than its container */
 .browser-viewport {
   flex: 1;
+  min-height: 0;
   position: relative;
   overflow: hidden;
 }
@@ -691,7 +707,7 @@ input[type="file"] { cursor: pointer; }
   background: #fff;
 }
 
-/* Placeholder shown before first navigation */
+/* Placeholder */
 .browser-placeholder {
   position: absolute;
   inset: 0;
@@ -704,18 +720,6 @@ input[type="file"] { cursor: pointer; }
   padding: 2rem;
   color: #505070;
 }
-.placeholder-logo {
-  font-size: 3.5rem;
-  opacity: 0.4;
-}
-.browser-placeholder h3 {
-  font-size: 1.1rem;
-  color: #7070a0;
-  margin: 0;
-}
-.browser-placeholder p {
-  font-size: 0.82rem;
-  max-width: 340px;
-  line-height: 1.5;
-  margin: 0;
-}
+.placeholder-logo { font-size: 3.5rem; opacity: 0.4; }
+.browser-placeholder h3 { font-size: 1.1rem; color: #7070a0; margin: 0; }
+.browser-placeholder p  { font-size: 0.82rem; max-width: 340px; line-height: 1.5; margin: 0; }
