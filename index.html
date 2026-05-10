@@ -75,12 +75,45 @@
       <div class="games-grid" id="preLaunchGrid"></div>
     </section>
 
-    <!-- ─── Proxies ─── -->
+    <!-- ─── Proxy Browser ─── -->
     <section id="proxies" class="section">
       <div class="section-header">
-        <h2><span class="h2-icon">🔓</span> Proxies</h2>
+        <h2><span class="h2-icon">🔓</span> Proxy Browser</h2>
       </div>
-      <div class="games-grid" id="proxiesGrid"></div>
+
+      <div class="proxy-browser">
+        <div class="browser-toolbar">
+          <button class="browser-btn" id="browserBack"    title="Back">&#8592;</button>
+          <button class="browser-btn" id="browserForward" title="Forward">&#8594;</button>
+          <button class="browser-btn" id="browserReload"  title="Reload">&#8635;</button>
+          <button class="browser-btn" id="browserHome"    title="Home">⌂</button>
+          <div class="browser-bar-wrap">
+            <svg class="browser-lock" id="browserLock" xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input id="browserBar" class="browser-bar" type="text"
+                   placeholder="Search DuckDuckGo or enter a URL…"
+                   autocomplete="off" spellcheck="false" />
+            <button class="browser-go" id="browserGo">Go</button>
+          </div>
+        </div>
+
+        <div class="browser-status" id="browserStatus">
+          <span id="browserStatusText">Enter a URL or search term above.</span>
+        </div>
+
+        <div class="browser-viewport">
+          <div class="browser-placeholder" id="browserPlaceholder">
+            <div class="placeholder-logo">🔓</div>
+            <h3>Proxy Browser</h3>
+            <p>Search with DuckDuckGo or navigate to any site — all proxied through UV.</p>
+          </div>
+          <iframe id="browserFrame" class="browser-frame" allowfullscreen style="display:none"></iframe>
+        </div>
+      </div>
     </section>
 
     <!-- ─── HTML Executor ─── -->
