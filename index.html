@@ -81,12 +81,12 @@
         <h2><span class="h2-icon">🔓</span> Proxy Browser</h2>
       </div>
 
-      <div class="proxy-browser">
+      <div class="proxy-browser" id="proxyBrowser">
         <div class="browser-toolbar">
-          <button class="browser-btn" id="browserBack"    title="Back">&#8592;</button>
-          <button class="browser-btn" id="browserForward" title="Forward">&#8594;</button>
-          <button class="browser-btn" id="browserReload"  title="Reload">&#8635;</button>
-          <button class="browser-btn" id="browserHome"    title="Home">⌂</button>
+          <button class="browser-btn" id="browserBack"       title="Back">&#8592;</button>
+          <button class="browser-btn" id="browserForward"    title="Forward">&#8594;</button>
+          <button class="browser-btn" id="browserReload"     title="Reload">&#8635;</button>
+          <button class="browser-btn" id="browserHome"       title="Home">⌂</button>
           <div class="browser-bar-wrap">
             <svg class="browser-lock" id="browserLock" xmlns="http://www.w3.org/2000/svg"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -99,9 +99,10 @@
                    autocomplete="off" spellcheck="false" />
             <button class="browser-go" id="browserGo">Go</button>
           </div>
+          <button class="browser-btn" id="browserFullscreen" title="Fullscreen">&#x26F6;</button>
         </div>
 
-        <div class="browser-status" id="browserStatus">
+        <div class="browser-status">
           <span id="browserStatusText">Enter a URL or search term above.</span>
         </div>
 
