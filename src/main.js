@@ -250,16 +250,14 @@ function tryProxy(url, win) {
   const uvUrl = getUVUrl(url);
   if (!uvUrl) return false;
 
-  // UV returns a root-relative path (/service/…).
-  // Blob pages have a null base origin so relative paths never resolve —
-  // make it absolute so the browser can reach the SW-controlled URL.
   const absUvUrl = location.origin + uvUrl;
 
-  // We set the iframe src via JS rather than hard-coding it in the HTML so the
-  // blob page's own load fires first. This gives Chrome time to register the
-  // blob window as a reachable SW client before the iframe starts fetching,
-  // preventing the "all clients returned an invalid MessagePort" race.
-  const html = `<!DOCTYPE html>
+  // Write the proxy shell directly into the already-open blank window.
+  // about:blank stays in the address bar — no blob URL needed.
+  // The iframe src is deferred two frames so the window is registered
+  // as a SW client before fetch events start firing.
+  win.document.open();
+  win.document.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
@@ -272,8 +270,6 @@ function tryProxy(url, win) {
 <body>
   <iframe id="f" allowfullscreen></iframe>
   <script>
-    // Small delay so the blob window is fully registered as a SW client
-    // before the iframe begins firing fetch events the SW must intercept.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         document.getElementById('f').src = ${JSON.stringify(absUvUrl)};
@@ -281,10 +277,8 @@ function tryProxy(url, win) {
     );
   </script>
 </body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html' });
-  if (!win.closed) win.location.href = URL.createObjectURL(blob);
+</html>`);
+  win.document.close();
   return true;
 }
 
