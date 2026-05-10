@@ -1,5 +1,6 @@
 import '../style.css';
 import { games, testingGames, proxies } from './games.js';
+import { BareMuxConnection } from '@mercuryworkshop/bare-mux';
 
 // ── Color bands for game cards (cycles through) ──────────────────────
 const BANDS = [
@@ -161,7 +162,7 @@ const LOADING_PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 // ── bare-mux transport setup ──────────────────────────────────────────
 // Must run BEFORE registerUV() — bare-mux needs a transport set before the
 // service worker starts handling requests, otherwise requests fail immediately.
-// BareMuxConnection is a global set by /baremux/index.js (loaded in index.html).
+
 async function initTransport() {
   try {
     const wispUrl =
@@ -356,80 +357,6 @@ function fetchSite() {
     .finally(() => setTimeout(() => { status.textContent = ''; }, 4000));
 }
 
-// ── In-page Proxy Browser ────────────────────────────────────────────
-function initProxyBrowser() {
-  const browser     = document.getElementById('proxyBrowser');
-  const frame       = document.getElementById('browserFrame');
-  const bar         = document.getElementById('browserBar');
-  const goBtn       = document.getElementById('browserGo');
-  const backBtn     = document.getElementById('browserBack');
-  const fwdBtn      = document.getElementById('browserForward');
-  const reloadBtn   = document.getElementById('browserReload');
-  const homeBtn     = document.getElementById('browserHome');
-  const fsBtn       = document.getElementById('browserFullscreen');
-  const placeholder = document.getElementById('browserPlaceholder');
-  const lock        = document.getElementById('browserLock');
-  const statusText  = document.getElementById('browserStatusText');
-
-  if (!frame) return;
-
-  const DDGO_HOME = 'https://duckduckgo.com';
-
-  function setStatus(msg) { statusText.textContent = msg; }
-
-  function navigateTo(input) {
-    let url = input.trim();
-    if (!url) return;
-
-    const looksLikeUrl = /^https?:\/\//i.test(url) ||
-      (/^[a-z0-9-]+(\.[a-z]{2,})+/i.test(url) && !url.includes(' '));
-
-    if (!looksLikeUrl) {
-      url = `${DDGO_HOME}/?q=${encodeURIComponent(url)}`;
-    } else if (!/^https?:\/\//i.test(url)) {
-      url = 'https://' + url;
-    }
-
-    const uvUrl = getUVUrl(url);
-    if (!uvUrl) {
-      setStatus('⚠️ Proxy not ready yet — wait a moment and try again.');
-      return;
-    }
-
-    placeholder.style.display = 'none';
-    frame.style.display = 'block';
-    lock.style.stroke = '#20FF8A';
-    setStatus(`Loading ${url}…`);
-    bar.value = url;
-    frame.src = location.origin + uvUrl;
-    frame.onload = () => setStatus(url);
-  }
-
-  goBtn.addEventListener('click',  () => navigateTo(bar.value));
-  bar.addEventListener('keydown',  e => { if (e.key === 'Enter') navigateTo(bar.value); });
-  bar.addEventListener('focus',    () => bar.select());
-
-  backBtn.addEventListener('click',   () => { try { frame.contentWindow.history.back();    } catch {} });
-  fwdBtn.addEventListener('click',    () => { try { frame.contentWindow.history.forward(); } catch {} });
-  reloadBtn.addEventListener('click', () => { try { frame.contentWindow.location.reload(); } catch { frame.src = frame.src; } });
-  homeBtn.addEventListener('click',   () => navigateTo(DDGO_HOME));
-
-  // ── Fullscreen ──────────────────────────────────────────────────────
-  fsBtn.addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      browser.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen();
-    }
-  });
-
-  document.addEventListener('fullscreenchange', () => {
-    const isFs = !!document.fullscreenElement;
-    fsBtn.innerHTML = isFs ? '&#x2715;' : '&#x26F6;';
-    fsBtn.title     = isFs ? 'Exit Fullscreen' : 'Fullscreen';
-  });
-}
-
 // ── Boot ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // Transport MUST be set before SW registration to avoid a race condition
@@ -438,13 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderGrid('gamesGrid',     games);
   renderGrid('preLaunchGrid', testingGames);
+  renderGrid('proxiesGrid',   proxies);
 
-  ['games', 'Testing'].forEach(sectionId => {
+  ['games', 'Testing', 'proxies'].forEach(sectionId => {
     const header = document.querySelector(`#${sectionId} .section-header`);
     if (header) header.appendChild(buildModeToggle());
   });
-
-  initProxyBrowser();
 
   initSearch();
 
@@ -455,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection(link.dataset.section);
   });
 
-  ['gamesGrid', 'preLaunchGrid'].forEach(id => {
+  ['gamesGrid', 'preLaunchGrid', 'proxiesGrid'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       const card = e.target.closest('.game-card');
       if (!card) return;
