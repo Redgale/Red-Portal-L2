@@ -1,0 +1,153 @@
+/* ── Proxy Browser ─────────────────────────────────────────────────── */
+.proxy-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid rgba(255, 28, 28, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(6, 7, 14, 0.85);
+  height: calc(100vh - 180px);
+  min-height: 500px;
+}
+
+/* Toolbar row */
+.browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 28, 28, 0.15);
+  flex-shrink: 0;
+}
+
+.browser-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #aaa;
+  border-radius: 7px;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.browser-btn:hover {
+  background: rgba(255, 28, 28, 0.15);
+  color: #FF1C1C;
+}
+
+/* Address bar wrapper */
+.browser-bar-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 0 10px;
+  gap: 8px;
+  height: 34px;
+  transition: border-color 0.2s;
+}
+.browser-bar-wrap:focus-within {
+  border-color: rgba(255, 28, 28, 0.5);
+}
+
+.browser-lock {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: #555;
+  transition: stroke 0.3s;
+}
+
+.browser-bar {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  font-family: 'Chakra Petch', monospace;
+  min-width: 0;
+}
+.browser-bar::placeholder { color: #555; }
+
+.browser-go {
+  background: #FF1C1C;
+  border: none;
+  color: #fff;
+  font-size: 0.75rem;
+  font-family: 'Chakra Petch', monospace;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.browser-go:hover { background: #cc0000; }
+
+/* Thin status bar */
+.browser-status {
+  padding: 4px 14px;
+  font-size: 0.7rem;
+  color: #505070;
+  font-family: 'Chakra Petch', monospace;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+/* Viewport fills remaining height */
+.browser-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.browser-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+/* Placeholder shown before first navigation */
+.browser-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  padding: 2rem;
+  color: #505070;
+}
+.placeholder-logo {
+  font-size: 3.5rem;
+  opacity: 0.4;
+}
+.browser-placeholder h3 {
+  font-size: 1.1rem;
+  color: #7070a0;
+  margin: 0;
+}
+.browser-placeholder p {
+  font-size: 0.82rem;
+  max-width: 340px;
+  line-height: 1.5;
+  margin: 0;
+}
