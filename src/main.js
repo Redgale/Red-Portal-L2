@@ -358,6 +358,7 @@ function fetchSite() {
 
 // ── In-page Proxy Browser ────────────────────────────────────────────
 function initProxyBrowser() {
+  const browser     = document.getElementById('proxyBrowser');
   const frame       = document.getElementById('browserFrame');
   const bar         = document.getElementById('browserBar');
   const goBtn       = document.getElementById('browserGo');
@@ -365,6 +366,7 @@ function initProxyBrowser() {
   const fwdBtn      = document.getElementById('browserForward');
   const reloadBtn   = document.getElementById('browserReload');
   const homeBtn     = document.getElementById('browserHome');
+  const fsBtn       = document.getElementById('browserFullscreen');
   const placeholder = document.getElementById('browserPlaceholder');
   const lock        = document.getElementById('browserLock');
   const statusText  = document.getElementById('browserStatusText');
@@ -373,15 +375,12 @@ function initProxyBrowser() {
 
   const DDGO_HOME = 'https://duckduckgo.com';
 
-  function setStatus(msg) {
-    statusText.textContent = msg;
-  }
+  function setStatus(msg) { statusText.textContent = msg; }
 
   function navigateTo(input) {
     let url = input.trim();
     if (!url) return;
 
-    // If it's not a URL, treat it as a DuckDuckGo search
     const looksLikeUrl = /^https?:\/\//i.test(url) ||
       (/^[a-z0-9-]+(\.[a-z]{2,})+/i.test(url) && !url.includes(' '));
 
@@ -397,43 +396,38 @@ function initProxyBrowser() {
       return;
     }
 
-    const absUvUrl = location.origin + uvUrl;
-
-    // Show frame, hide placeholder
     placeholder.style.display = 'none';
     frame.style.display = 'block';
     lock.style.stroke = '#20FF8A';
-
     setStatus(`Loading ${url}…`);
     bar.value = url;
-
-    frame.src = absUvUrl;
-
+    frame.src = location.origin + uvUrl;
     frame.onload = () => setStatus(url);
   }
 
-  // Go button / Enter key
-  goBtn.addEventListener('click', () => navigateTo(bar.value));
-  bar.addEventListener('keydown', e => {
-    if (e.key === 'Enter') navigateTo(bar.value);
-  });
+  goBtn.addEventListener('click',  () => navigateTo(bar.value));
+  bar.addEventListener('keydown',  e => { if (e.key === 'Enter') navigateTo(bar.value); });
+  bar.addEventListener('focus',    () => bar.select());
 
-  // Select all on focus for easy replacement
-  bar.addEventListener('focus', () => bar.select());
+  backBtn.addEventListener('click',   () => { try { frame.contentWindow.history.back();    } catch {} });
+  fwdBtn.addEventListener('click',    () => { try { frame.contentWindow.history.forward(); } catch {} });
+  reloadBtn.addEventListener('click', () => { try { frame.contentWindow.location.reload(); } catch { frame.src = frame.src; } });
+  homeBtn.addEventListener('click',   () => navigateTo(DDGO_HOME));
 
-  // Nav buttons — these talk to the iframe's content window history
-  backBtn.addEventListener('click', () => {
-    try { frame.contentWindow.history.back(); } catch { /* cross-origin, ignore */ }
-  });
-  fwdBtn.addEventListener('click', () => {
-    try { frame.contentWindow.history.forward(); } catch { /* cross-origin, ignore */ }
-  });
-  reloadBtn.addEventListener('click', () => {
-    try { frame.contentWindow.location.reload(); } catch {
-      frame.src = frame.src; // fallback
+  // ── Fullscreen ──────────────────────────────────────────────────────
+  fsBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      browser.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen();
     }
   });
-  homeBtn.addEventListener('click', () => navigateTo(DDGO_HOME));
+
+  document.addEventListener('fullscreenchange', () => {
+    const isFs = !!document.fullscreenElement;
+    fsBtn.innerHTML = isFs ? '&#x2715;' : '&#x26F6;';
+    fsBtn.title     = isFs ? 'Exit Fullscreen' : 'Fullscreen';
+  });
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────
